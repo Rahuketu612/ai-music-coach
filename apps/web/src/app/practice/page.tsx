@@ -167,7 +167,7 @@ export default function PracticePage() {
         {/* Audio Upload */}
         <div className="mb-8">
           <label className="block text-sm font-medium text-slate-700 mb-2">
-            Upload Audio (Optional)
+            Upload Audio Recording (Optional)
           </label>
           <input
             type="file"
@@ -176,7 +176,7 @@ export default function PracticePage() {
             className="w-full p-3 border border-slate-300 rounded-lg"
           />
           <p className="text-sm text-slate-500 mt-1">
-            Upload a recording for more detailed feedback
+            Upload a WAV recording for detailed audio analysis
           </p>
           {audioFile && (
             <p className="text-sm text-green-600 mt-1">
@@ -210,11 +210,11 @@ export default function PracticePage() {
       {/* Feedback Result */}
       {result && (
         <div className="bg-green-50 p-8 rounded-xl border-2 border-green-200 mb-8">
-          <h3 className="text-2xl font-bold text-slate-900 mb-6">🎉 Great Practice!</h3>
+          <h3 className="text-2xl font-bold text-slate-900 mb-6">🎉 Practice Complete!</h3>
           
-          <div className="grid md:grid-cols-3 gap-6 mb-6">
+          <div className="grid md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg text-center">
-              <p className="text-sm text-slate-500 mb-1">Chord Practiced</p>
+              <p className="text-sm text-slate-500 mb-1">Chord</p>
               <p className="text-2xl font-bold text-slate-900">{result.chord_name}</p>
             </div>
             <div className="bg-white p-4 rounded-lg text-center">
@@ -222,44 +222,68 @@ export default function PracticePage() {
               <p className="text-2xl font-bold text-slate-900">{formatTime(result.duration_seconds)}</p>
             </div>
             <div className="bg-white p-4 rounded-lg text-center">
-              <p className="text-sm text-slate-500 mb-1">Overall Score</p>
-              <p className="text-2xl font-bold text-green-600">
-                {Math.round(((result.audio_score + result.rhythm_score) / 2) * 100)}%
+              <p className="text-sm text-slate-500 mb-1">Audio Score</p>
+              <p className="text-2xl font-bold text-primary-600">
+                {Math.round(result.audio_score * 100)}%
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-lg text-center">
+              <p className="text-sm text-slate-500 mb-1">Rhythm Score</p>
+              <p className="text-2xl font-bold text-guitar-amber">
+                {Math.round(result.rhythm_score * 100)}%
               </p>
             </div>
           </div>
 
+          {/* Score Bars */}
           <div className="grid md:grid-cols-2 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg">
-              <p className="text-sm text-slate-500 mb-1">Audio Clarity</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-primary-500 h-2 rounded-full"
-                    style={{ width: `${result.audio_score * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium">{Math.round(result.audio_score * 100)}%</span>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">Audio Clarity</span>
+                <span className="text-sm font-bold">{Math.round(result.audio_score * 100)}%</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-3">
+                <div
+                  className="bg-primary-500 h-3 rounded-full transition-all"
+                  style={{ width: `${result.audio_score * 100}%` }}
+                />
               </div>
             </div>
             <div className="bg-white p-4 rounded-lg">
-              <p className="text-sm text-slate-500 mb-1">Rhythm</p>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-guitar-amber h-2 rounded-full"
-                    style={{ width: `${result.rhythm_score * 100}%` }}
-                  />
-                </div>
-                <span className="text-sm font-medium">{Math.round(result.rhythm_score * 100)}%</span>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">Rhythm Consistency</span>
+                <span className="text-sm font-bold">{Math.round(result.rhythm_score * 100)}%</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-3">
+                <div
+                  className="bg-guitar-amber h-3 rounded-full transition-all"
+                  style={{ width: `${result.rhythm_score * 100}%` }}
+                />
               </div>
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg">
+          {/* Coach Feedback */}
+          <div className="bg-white p-6 rounded-lg mb-6">
             <p className="text-sm text-slate-500 mb-2">Coach Feedback</p>
-            <p className="text-lg text-slate-800">{result.feedback_text}</p>
+            <p className="text-lg text-slate-800 leading-relaxed">{result.feedback_text}</p>
           </div>
+
+          {/* Analysis Note */}
+          {audioFile ? (
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Audio Analysis:</strong> Your recording was analyzed for rhythm consistency, 
+                volume stability, and audio clarity. Focus on the recommendations above to improve.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-amber-50 p-4 rounded-lg">
+              <p className="text-sm text-amber-800">
+                <strong>Tip:</strong> Upload an audio recording for more detailed analysis of your playing!
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -282,6 +306,10 @@ export default function PracticePage() {
           <li className="flex gap-3">
             <span className="text-primary-600">💡</span>
             <span>Practice transitioning between chords slowly first</span>
+          </li>
+          <li className="flex gap-3">
+            <span className="text-primary-600">🎵</span>
+            <span>Use a metronome to improve your rhythm consistency</span>
           </li>
         </ul>
       </div>

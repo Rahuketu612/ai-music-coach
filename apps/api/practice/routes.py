@@ -1,6 +1,7 @@
 # Practice session module
 # Handles practice session endpoints and feedback generation
 
+import os
 import random
 from datetime import datetime
 from typing import List, Optional
@@ -15,81 +16,13 @@ from db import (
     PracticeSessionList,
     get_db,
 )
+from audio.analyzer import analyze_practice_audio
+from audio.feedback import generate_placeholder_feedback
 
 router = APIRouter(prefix="/api/practice", tags=["Practice"])
 
-# Chord feedback templates for placeholder feedback
-CHORD_FEEDBACK = {
-    "C": [
-        "You practiced C major. Keep your rhythm steady and try again slowly.",
-        "C major sounds good! Focus on keeping all fingers pressed firmly.",
-        "Nice work on C major. Practice transitioning from and to this chord.",
-    ],
-    "G": [
-        "You practiced G major. Try to keep your wrist relaxed while fretting.",
-        "G major is tricky with 3 fingers. Keep practicing the stretch!",
-        "Good effort on G major. Pay attention to the high E string clarity.",
-    ],
-    "D": [
-        "You practiced D major. Great for finger strength!",
-        "D major requires precision. Focus on the thin strings.",
-        "Nice work on D major. The circular motion is key.",
-    ],
-    "Em": [
-        "You practiced E minor. This is a great foundational chord!",
-        "Em is one of the easiest chords. You're doing great!",
-        "Good job on E minor. Keep that wrist comfortable.",
-    ],
-    "Am": [
-        "You practiced A minor. Watch your index finger position.",
-        "Am requires a nice curved finger. Keep practicing!",
-        "Nice work on A minor. Focus on muting the low E string.",
-    ],
-    "E": [
-        "You practiced E major. Classic open chord!",
-        "E major is great for building finger strength.",
-        "Good work on E major. Keep all fingers close to the fret.",
-    ],
-    "F": [
-        "You practiced F major. This is a barre chord - great job tackling it!",
-        "F major is challenging. Take it slow and build up strength.",
-        "Nice effort on F major. Keep your index finger curved.",
-    ],
-    "A": [
-        "You practiced A major. Clean and bright sound!",
-        "A major is versatile. Practice the finger spacing.",
-        "Good job on A major. Keep that circular shape.",
-    ],
-}
-
-
-def generate_placeholder_feedback(chord_name: str, duration_seconds: int) -> tuple[float, float, str]:
-    """
-    Generate deterministic placeholder feedback for a practice session.
-    
-    In a real implementation, this would analyze the audio file and
-    provide actual feedback based on pitch detection, timing, etc.
-    
-    Returns: (audio_score, rhythm_score, feedback_text)
-    """
-    # Normalize chord name
-    chord = chord_name.upper().strip()
-    
-    # Generate deterministic scores based on duration
-    # Longer practice = slightly higher scores (for encouragement)
-    base_score = min(0.6, duration_seconds / 120)  # Cap at 60% for now
-    audio_score = round(base_score + random.uniform(0.1, 0.25), 2)
-    rhythm_score = round(base_score + random.uniform(0.05, 0.2), 2)
-    
-    # Ensure scores are within valid range
-    audio_score = min(1.0, max(0.0, audio_score))
-    rhythm_score = min(1.0, max(0.0, rhythm_score))
-    
-    # Get feedback for chord (use C major as fallback)
-    feedback_options = CHORD_FEEDBACK.get(chord, CHORD_FEEDBACK["C"])
-    feedback_text = random.choice(feedback_options)
-    
-    return audio_score, rhythm_score, feedback_text
+# Storage directory for audio uploads
+AUDIO_UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
 
 
 @router.post("/session", response_model=PracticeSessionResponse)
@@ -104,18 +37,53 @@ async def create_practice_session(
     
     - **chord_name**: The chord practiced (e.g., C, G, D, Em, Am)
     - **duration_seconds**: Duration of the practice in seconds
-    - **audio_file**: Optional audio file upload
+    - **audio_file**: Optional audio file upload (WAV format recommended)
     """
-    # Handle audio file upload (placeholder - just store filename)
     audio_filename = None
-    if audio_file:
-        # In production, we would save the file and process it
-        audio_filename = f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{audio_file.filename}"
     
-    # Generate placeholder feedback
-    audio_score, rhythm_score, feedback_text = generate_placeholder_feedback(
-        chord_name, duration_seconds
-    )
+    # Process audio if uploaded
+    if audio_file:
+        # Read audio content
+        audio_content = await audio_file.read()
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        safe_filename = f"{timestamp}_{audio_file.filename}"
+        audio_filename = f"upload_{safe_filename}"
+        
+        # Try to analyze the audio
+        try:
+            analysis_result = analyze_practice_audio(
+                audio_content,
+                chord_name,
+                duration_seconds
+            )
+            
+            # Use actual analysis results
+            audio_score = analysis_result.audio_score
+            rhythm_score = analysis_result.rhythm_score
+            
+            # Generate feedback from analysis
+            from audio.feedback import generate_feedback
+            feedback = generate_feedback(analysis_result)
+            feedback_text = feedback.feedback_text
+            
+            # Store additional metrics (we'll need to extend the model for this)
+            # For now, we'll include them in the feedback
+            if feedback.recommendations:
+                feedback_text += " " + " ".join(feedback.recommendations)
+            
+        except Exception as e:
+            # If analysis fails, fall back to placeholder
+            print(f"Audio analysis failed: {e}")
+            audio_score, rhythm_score, feedback_text = generate_placeholder_feedback(
+                chord_name, duration_seconds
+            )
+    else:
+        # No audio uploaded - use placeholder feedback
+        audio_score, rhythm_score, feedback_text = generate_placeholder_feedback(
+            chord_name, duration_seconds
+        )
     
     # Create database record
     db_session = PracticeSessionDB(
