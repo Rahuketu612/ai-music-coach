@@ -1,4 +1,71 @@
+"use client";
+
+import { useState, useEffect } from "react";
+
+interface SessionResponse {
+  id: number;
+  chord_name: string;
+  duration_seconds: number;
+  audio_filename: string | null;
+  created_at: string;
+  audio_score: number;
+  rhythm_score: number;
+  feedback_text: string;
+}
+
+interface SessionsListResponse {
+  sessions: SessionResponse[];
+  total: number;
+  average_audio_score: number;
+  average_rhythm_score: number;
+}
+
 export default function DashboardPage() {
+  const [sessions, setSessions] = useState<SessionResponse[]>([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    avgAudio: 0,
+    avgRhythm: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const fetchSessions = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/practice/sessions");
+      if (!response.ok) {
+        throw new Error("Failed to fetch sessions");
+      }
+      const data: SessionsListResponse = await response.json();
+      setSessions(data.sessions);
+      setStats({
+        total: data.total,
+        avgAudio: data.average_audio_score,
+        avgRhythm: data.average_rhythm_score,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-6 py-12">
       <div className="mb-12">
@@ -10,43 +77,98 @@ export default function DashboardPage() {
 
       {/* Stats Overview */}
       <div className="grid md:grid-cols-4 gap-6 mb-12">
-        <StatCard label="Practice Sessions" value="0" sublabel="This week" />
-        <StatCard label="Total Practice Time" value="0h" sublabel="This week" />
-        <StatCard label="Chords Learned" value="0" sublabel="Keep going!" />
-        <StatCard label="Current Streak" value="0 days" sublabel="Start today!" />
+        <StatCard label="Total Sessions" value={stats.total.toString()} sublabel="All time" />
+        <StatCard label="Avg Audio Score" value={stats.avgAudio.toString()} sublabel="Out of 100" />
+        <StatCard label="Avg Rhythm Score" value={stats.avgRhythm.toString()} sublabel="Out of 100" />
+        <StatCard label="Total Practice" value={`${sessions.reduce((acc, s) => acc + s.duration_seconds, 0)}s`} sublabel="All sessions" />
       </div>
 
       {/* Practice History */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Recent Practice</h2>
-        <div className="text-center py-12 text-slate-500">
-          <p className="text-lg mb-2">No practice sessions yet</p>
-          <p className="text-sm">
-            Complete your first practice session to see your history here.
-          </p>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-slate-900">Recent Practice</h2>
+          <button
+            onClick={fetchSessions}
+            disabled={isLoading}
+            className="text-sm text-primary-600 hover:text-primary-700 disabled:opacity-50"
+          >
+            {isLoading ? "Loading..." : "Refresh"}
+          </button>
         </div>
-      </div>
 
-      {/* Progress Chart Placeholder */}
-      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mb-8">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Weekly Progress</h2>
-        <div className="h-64 flex items-center justify-center text-slate-400">
-          <div className="text-center">
-            <p className="text-6xl mb-4">📈</p>
-            <p>Progress charts coming soon</p>
+        {isLoading ? (
+          <div className="text-center py-12">
+            <p className="text-slate-500">Loading sessions...</p>
           </div>
-        </div>
+        ) : error ? (
+          <div className="text-center py-12 text-red-500">
+            <p>{error}</p>
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="text-center py-12 text-slate-500">
+            <p className="text-lg mb-2">No practice sessions yet</p>
+            <p className="text-sm">
+              Complete your first practice session to see your history here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-primary-300 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="text-3xl">🎸</div>
+                    <div>
+                      <p className="font-semibold text-slate-900">
+                        {session.chord_name} Chord
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {formatDate(session.created_at)} • {session.duration_seconds}s
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="text-center">
+                      <p className="text-xs text-slate-500">Audio</p>
+                      <p className="font-bold text-primary-600">{session.audio_score}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-slate-500">Rhythm</p>
+                      <p className="font-bold text-secondary-600">{session.rhythm_score}</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-slate-600 italic">"{session.feedback_text}"</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Achievements */}
+      {/* Tips */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-        <h2 className="text-2xl font-bold text-slate-900 mb-6">Achievements</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <AchievementBadge title="First Steps" description="Complete your first practice" locked />
-          <AchievementBadge title="Consistent" description="Practice 3 days in a row" locked />
-          <AchievementBadge title="Chord Master" description="Learn 5 basic chords" locked />
-          <AchievementBadge title="Dedicated" description="Practice for 10 hours total" locked />
-        </div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">Practice Tips</h2>
+        <ul className="space-y-3 text-slate-600">
+          <li className="flex gap-3">
+            <span className="text-primary-600">•</span>
+            Practice for at least 15 minutes each day to build muscle memory
+          </li>
+          <li className="flex gap-3">
+            <span className="text-primary-600">•</span>
+            Focus on clean chord transitions rather than speed
+          </li>
+          <li className="flex gap-3">
+            <span className="text-primary-600">•</span>
+            Record yourself to identify areas for improvement
+          </li>
+          <li className="flex gap-3">
+            <span className="text-primary-600">•</span>
+            Start slowly and gradually increase tempo as you improve
+          </li>
+        </ul>
       </div>
     </div>
   );
@@ -66,32 +188,6 @@ function StatCard({
       <p className="text-sm text-slate-500 mb-1">{label}</p>
       <p className="text-3xl font-bold text-slate-900">{value}</p>
       <p className="text-sm text-slate-400">{sublabel}</p>
-    </div>
-  );
-}
-
-function AchievementBadge({
-  title,
-  description,
-  locked,
-}: {
-  title: string;
-  description: string;
-  locked: boolean;
-}) {
-  return (
-    <div className={`p-4 rounded-lg text-center ${
-      locked ? "bg-slate-100" : "bg-primary-50 border-2 border-primary-200"
-    }`}>
-      <div className={`text-4xl mb-2 ${locked ? "grayscale opacity-50" : ""}`}>
-        {locked ? "🔒" : "🏆"}
-      </div>
-      <h3 className={`font-semibold ${locked ? "text-slate-400" : "text-slate-900"}`}>
-        {title}
-      </h3>
-      <p className={`text-sm ${locked ? "text-slate-400" : "text-slate-600"}`}>
-        {description}
-      </p>
     </div>
   );
 }

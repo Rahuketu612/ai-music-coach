@@ -63,6 +63,34 @@ ai-music-coach/
 └── docker-compose.yml # Docker services
 ```
 
+## 🎸 Practice Session Feature
+
+The Practice Session MVP allows you to:
+
+1. **Select a chord** - Choose from C, G, D, Em, or Am
+2. **Set practice duration** - Enter the length of your practice session
+3. **Upload audio (optional)** - Record and upload your practice attempt
+4. **Get feedback** - Receive basic feedback and scores
+5. **Track progress** - View your practice history on the dashboard
+
+### Using the Practice Page
+
+1. Navigate to the Practice page
+2. Click on a chord button to select it
+3. Adjust the practice duration if needed
+4. Optionally upload an audio file
+5. Click "Submit Practice Session"
+6. View your feedback and scores
+
+### Dashboard Statistics
+
+The dashboard displays:
+- Total practice sessions
+- Average audio score
+- Average rhythm score
+- Total practice time
+- Recent practice history
+
 ## 🛠️ Development
 
 ### Running Tests

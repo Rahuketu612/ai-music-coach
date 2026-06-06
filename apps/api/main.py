@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import health, version
+from api.routes.practice import router as practice_router
 
 app = FastAPI(
     title="AI Music Coach API",
@@ -21,6 +22,7 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, tags=["Health"])
 app.include_router(version.router, prefix="/api", tags=["Info"])
+app.include_router(practice_router, tags=["Practice"])
 
 
 @app.get("/")

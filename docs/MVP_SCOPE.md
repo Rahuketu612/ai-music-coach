@@ -19,26 +19,40 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 
 ### 2. Frontend Pages
 - [x] Landing page with hero section and feature highlights
-- [x] Practice page with practice mode selection (placeholders allowed)
-- [x] Dashboard page with progress statistics (empty state)
+- [x] Practice page with chord selector and audio upload
+- [x] Dashboard page with practice session history and stats
 - [x] Navigation bar (Home, Practice, Dashboard)
 
 ### 3. Backend API
 - [x] GET /health - Health check endpoint
 - [x] GET /api/version - Returns app name and version
-- [ ] GET /api/sessions - List practice sessions (planned)
-- [ ] POST /api/sessions - Create practice session (planned)
+- [x] POST /api/practice/session - Create practice session with chord and duration
+- [x] GET /api/practice/sessions - List all practice sessions with stats
+- [x] GET /api/practice/sessions/{id} - Get specific session by ID
 
-### 4. API Tests
+### 4. Practice Session Features
+- [x] Chord selector (C, G, D, Em, Am)
+- [x] Practice duration input
+- [x] Audio file upload (optional)
+- [x] Deterministic placeholder feedback generation
+- [x] Audio and rhythm score (placeholder values)
+- [x] Session history display
+- [x] Statistics: total sessions, average scores
+
+### 5. API Tests
 - [x] Test health endpoint returns status ok
 - [x] Test version endpoint returns correct format
+- [x] Test create session endpoint
+- [x] Test list sessions endpoint
+- [x] Test get session by ID endpoint
+- [x] Test validation (invalid chord, invalid duration)
 
-### 5. Documentation
+### 6. Documentation
 - [x] README.md with setup instructions
 - [x] PRD.md with product requirements
 - [x] ARCHITECTURE.md with system overview
 - [x] MVP_SCOPE.md (this file)
-- [ ] ROADMAP.md with development timeline
+- [x] ROADMAP.md with development timeline
 
 ## Out of Scope (Post-MVP)
 
@@ -47,7 +61,7 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 - Camera-based hand position detection
 - Real-time chord recognition
 - User authentication/accounts
-- Persistent user data storage
+- Persistent user data storage (using in-memory for MVP)
 - Advanced progress analytics
 - Practice recommendations
 - Achievement system implementation
@@ -68,33 +82,37 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 1. **Builds Successfully**: Frontend and backend both build without errors
 2. **Tests Pass**: All API tests pass
 3. **Pages Load**: All three pages (Home, Practice, Dashboard) render correctly
-4. **API Responds**: Both API endpoints return expected responses
+4. **API Responds**: All API endpoints return expected responses
 5. **Navigation Works**: User can navigate between all pages
 6. **Docker Runs**: Docker Compose starts database and API successfully
+7. **Practice Flow Works**: User can create session, view feedback, see history on dashboard
 
 ## Development Priorities
 
-### Priority 1: Foundation (Current)
+### Priority 1: Foundation ✓
 - Project structure ✓
 - Basic API endpoints ✓
 - Landing page ✓
 - CI/CD pipeline ✓
 
-### Priority 2: User Interface
-- Practice page with mode selection
-- Dashboard with empty states
-- Navigation component
-- Responsive design
+### Priority 2: User Interface ✓
+- Practice page with chord selection ✓
+- Dashboard with session history ✓
+- Navigation component ✓
+- Responsive design ✓
 
-### Priority 3: Data Layer (Post-MVP)
-- Database models
-- User session storage
-- Progress tracking
+### Priority 3: Practice Session MVP ✓
+- Practice session model ✓
+- Create/list/get session endpoints ✓
+- Chord selector UI ✓
+- Audio upload (optional) ✓
+- Feedback display ✓
+- Statistics display ✓
 
-### Priority 4: Audio Analysis (Post-MVP)
+### Priority 4: Audio Analysis (Future)
 - Microphone access
 - Basic pitch detection
-- Feedback display
+- Real feedback generation
 
 ## Dependencies
 
@@ -123,7 +141,7 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 |-------|----------|-------|
 | Foundation | 1 week | Project setup, basic pages, CI |
 | UI Polish | 1 week | Responsive design, animations |
-| Data Layer | 1 week | Database, session storage |
+| Practice Session MVP | 1 week | Session model, endpoints, UI |
 | Audio MVP | 2 weeks | Microphone, basic analysis |
 
 *Note: Timeline estimates may vary based on team availability.*
