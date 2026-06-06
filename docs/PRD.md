@@ -22,25 +22,27 @@ Many beginners struggle to learn guitar without a teacher because:
 
 ### 1. Practice Session Framework
 - Users can start guided practice sessions
-- Sessions include chord practice, scale training, and free play
-- Microphone input captures audio for analysis
+- Sessions include chord practice with chord selection (C, G, D, Em, Am)
 - Session timer tracks practice duration
+- Optional audio file upload for future analysis
 
-### 2. Basic Audio Analysis
-- Detect pitch and note accuracy
-- Identify chord types being played
-- Provide basic feedback on timing (future)
+### 2. Placeholder Feedback System
+- Generates deterministic placeholder feedback based on practice duration
+- Provides encouraging messages specific to each chord
+- Calculates placeholder audio and rhythm scores
+- **Note**: Real audio analysis is not yet implemented. Scores and feedback are placeholders.
 
 ### 3. Progress Dashboard
 - Display total practice time
-- Show practice frequency (sessions per week)
+- Show practice frequency (sessions count)
 - Track chords learned
-- Show achievement badges
+- Show achievement badges (with unlock conditions)
+- Display recent practice history
 
 ### 4. User Interface
 - Landing page explaining the product
-- Practice page with session modes
-- Dashboard showing progress
+- Practice page with chord selector and feedback display
+- Dashboard showing progress and statistics
 - Responsive design for mobile and desktop
 
 ## User Stories
