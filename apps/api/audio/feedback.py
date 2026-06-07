@@ -4,6 +4,7 @@ Feedback Generator for Guitar Practice
 Generates beginner-friendly feedback based on audio analysis results.
 """
 
+import random
 from dataclasses import dataclass
 from typing import List, Optional
 from .analyzer import AudioAnalysisResult
@@ -17,54 +18,71 @@ class FeedbackResult:
     rhythm_score: float
     volume_stability_score: float
     tempo_estimate: float
+    silence_ratio: float
     recommendations: List[str]
 
 
 # Feedback templates for different scenarios
 FEEDBACK_TEMPLATES = {
     "rhythm_low": [
-        "Your strumming rhythm seems a bit uneven. Try practicing with a metronome at a slower tempo to build consistency.",
+        "Your strumming rhythm is inconsistent. Practice slowly with a metronome.",
         "The timing of your strums varies quite a bit. Focus on keeping a steady beat - it helps to count out loud as you play.",
         "Your rhythm needs some work. Start slow and gradually increase speed as you become more comfortable.",
+        "The rhythm of your strumming isn't quite steady yet. Try clapping the beat first before playing.",
     ],
     "rhythm_medium": [
         "Your rhythm is developing well! Keep practicing to make it more consistent.",
         "Good timing on your strumming. Continue practicing to make it feel more natural.",
+        "You're making progress on timing! Focus on the transitions between strums.",
     ],
     "rhythm_high": [
         "Excellent rhythm! Your timing is very consistent. Great job!",
         "Your strumming rhythm is excellent and steady. Keep up the great work!",
+        "Very consistent timing! You're developing good rhythm habits.",
     ],
     "volume_low": [
         "Your strumming pressure changes too much throughout the practice. Try to maintain a more even touch.",
         "The volume of your playing varies quite a bit. Focus on keeping your strumming hand movements consistent.",
         "Your dynamics are quite uneven. Practice keeping a steady strumming motion for more consistent volume.",
+        "Try to keep your strumming hand at a consistent distance from the strings for even volume.",
     ],
     "volume_medium": [
         "Your volume is fairly consistent. A bit more control would make it even better.",
+        "Good volume control! Keep working on making it more even throughout.",
     ],
     "volume_high": [
         "Great volume control! Your strumming is consistent throughout.",
         "Excellent! Your volume stays steady throughout your playing.",
+        "Very consistent dynamics! Well done on maintaining steady volume.",
     ],
     "clarity_low": [
         "The audio recording shows some issues with clarity. Make sure you're pressing the strings down firmly.",
         "Your notes don't always come through clearly. Check your finger placement on the frets.",
+        "Try to ensure each string is being struck clearly without muffled notes.",
     ],
     "pitch_unstable": [
         "Your pitch wavers a bit during sustained notes. Focus on keeping your fingers in place once you form the chord.",
         "Some notes sound slightly out of tune. Double-check your finger positions for the {chord} chord.",
+        "Your chords aren't always ringing out cleanly. Make sure your fingers are pressing firmly.",
+    ],
+    "silence_high": [
+        "There are long pauses between strums. Focus on maintaining a steady pattern.",
+        "Your playing has a lot of silent gaps. Try to keep the strumming continuous.",
+        "Work on reducing the pauses between your strums for a smoother sound.",
     ],
     "good_practice": [
         "Good practice session on {chord}! Keep up the regular practice to improve your skills.",
         "Nice work on {chord}! You're building good habits with consistent practice.",
         "Great effort on {chord}! Your playing is developing nicely with regular practice.",
+        "Well done on {chord}! Your consistent practice is paying off.",
     ],
     "tempo_slow": [
         "Your tempo is quite slow, which is perfect for building technique. As you get more comfortable, try gradually increasing the speed.",
+        "Nice and slow practice! This is great for developing clean technique.",
     ],
     "tempo_fast": [
         "Your tempo is quite fast! While that's great for building speed, make sure you're not sacrificing accuracy for speed.",
+        "You're playing at a fast tempo! Just make sure each chord change is still clean.",
     ],
 }
 
@@ -83,13 +101,12 @@ def generate_feedback(
     Returns:
         FeedbackResult with formatted feedback text
     """
-    import random
-    
     chord = result.expected_chord
     rhythm_score = result.rhythm_score
     volume_score = result.volume_stability_score
     audio_score = result.audio_score
     tempo = result.tempo_estimate
+    silence_ratio = result.silence_ratio
     
     feedback_parts = []
     recommendations = list(result.recommendations)
@@ -110,8 +127,12 @@ def generate_feedback(
     else:
         feedback_parts.append(random.choice(FEEDBACK_TEMPLATES["volume_high"]))
     
+    # Add silence feedback if applicable
+    if silence_ratio > 0.5:
+        feedback_parts.append(random.choice(FEEDBACK_TEMPLATES["silence_high"]))
+    
     # Add chord-specific feedback
-    if "pitch_unstable" in result.detected_issues:
+    if "pitch wavers" in str(result.detected_issues).lower() or "pitch_unstable" in str(result.detected_issues):
         template = random.choice(FEEDBACK_TEMPLATES["pitch_unstable"])
         feedback_parts.append(template.format(chord=chord))
     
@@ -123,7 +144,9 @@ def generate_feedback(
             feedback_parts.append(random.choice(FEEDBACK_TEMPLATES["tempo_fast"]))
     
     # If no specific issues, add positive feedback
-    if len(result.detected_issues) == 0:
+    if len(result.detected_issues) == 0 or all(
+        s < 0.4 for s in [rhythm_score, volume_score]
+    ):
         template = random.choice(FEEDBACK_TEMPLATES["good_practice"])
         feedback_parts.append(template.format(chord=chord))
     
@@ -136,6 +159,7 @@ def generate_feedback(
         rhythm_score=result.rhythm_score,
         volume_stability_score=result.volume_stability_score,
         tempo_estimate=result.tempo_estimate,
+        silence_ratio=result.silence_ratio,
         recommendations=recommendations,
     )
 
@@ -148,8 +172,6 @@ def generate_placeholder_feedback(chord_name: str, duration_seconds: int) -> tup
     
     Returns: (audio_score, rhythm_score, feedback_text)
     """
-    import random
-    
     # Chord-specific placeholder feedback
     CHORD_FEEDBACK = {
         "C": [

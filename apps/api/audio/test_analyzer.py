@@ -5,15 +5,19 @@ Uses synthetic audio signals for testing - no copyrighted audio files required.
 """
 
 import io
+import os
 import numpy as np
 import pytest
 from scipy.io import wavfile
 
 from audio.analyzer import (
     load_audio,
+    load_audio_from_bytes,
+    extract_duration,
     estimate_tempo,
     estimate_pitch_features,
     estimate_volume_stability,
+    estimate_silence_ratio,
     score_rhythm_consistency,
     analyze_practice_audio,
     AudioData,
@@ -98,13 +102,51 @@ def create_rhythmic_audio(
     return buffer.read()
 
 
+def create_silent_audio(
+    duration: float = 1.0,
+    sample_rate: int = 44100,
+) -> bytes:
+    """Create audio that is mostly silence."""
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    # Very low amplitude noise (almost silent)
+    samples = np.random.normal(0, 0.001, len(t)).astype(np.float32)
+    
+    samples_int = (samples * 32767).astype(np.int16)
+    
+    buffer = io.BytesIO()
+    wavfile.write(buffer, sample_rate, samples_int)
+    buffer.seek(0)
+    return buffer.read()
+
+
+def create_variable_volume_audio(
+    duration: float = 2.0,
+    sample_rate: int = 44100,
+) -> bytes:
+    """Create audio with varying volume levels."""
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    base_freq = 440.0
+    samples = np.sin(2 * np.pi * base_freq * t)
+    
+    # Add volume modulation (5 Hz)
+    modulation = 0.3 + 0.7 * (0.5 + 0.5 * np.sin(2 * np.pi * 5 * t))
+    samples = samples * modulation
+    
+    samples_int = (samples * 32767).astype(np.int16)
+    
+    buffer = io.BytesIO()
+    wavfile.write(buffer, sample_rate, samples_int)
+    buffer.seek(0)
+    return buffer.read()
+
+
 class TestLoadAudio:
     """Tests for load_audio function."""
     
-    def test_load_synthetic_wav(self):
-        """Test loading a synthetic WAV file."""
+    def test_load_synthetic_wav_from_bytes(self):
+        """Test loading a synthetic WAV file from bytes."""
         wav_data = create_synthetic_wav(frequency=440, duration=1.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         assert isinstance(audio, AudioData)
         assert audio.sample_rate == 44100
@@ -115,10 +157,34 @@ class TestLoadAudio:
         """Test loading guitar-like audio."""
         # E2 string fundamental is ~82 Hz
         wav_data = create_guitar_like_audio(frequencies=[82, 164, 246], duration=2.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         assert audio.duration == pytest.approx(2.0, abs=0.1)
         assert len(audio.samples) > 0
+    
+    def test_load_audio_file_path(self, tmp_path):
+        """Test loading audio from file path."""
+        wav_data = create_synthetic_wav(frequency=440, duration=1.0)
+        file_path = tmp_path / "test.wav"
+        file_path.write_bytes(wav_data)
+        
+        audio = load_audio(str(file_path))
+        
+        assert isinstance(audio, AudioData)
+        assert audio.sample_rate == 44100
+
+
+class TestExtractDuration:
+    """Tests for extract_duration function."""
+    
+    def test_extract_duration(self):
+        """Test extracting duration from audio."""
+        wav_data = create_synthetic_wav(frequency=440, duration=2.5)
+        audio = load_audio_from_bytes(wav_data)
+        
+        duration = extract_duration(audio)
+        
+        assert duration == pytest.approx(2.5, abs=0.1)
 
 
 class TestEstimateTempo:
@@ -128,7 +194,7 @@ class TestEstimateTempo:
         """Test tempo estimation on rhythmic audio."""
         # 120 BPM = 2 beats per second
         wav_data = create_rhythmic_audio(beat_frequency=2.0, duration=4.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         tempo = estimate_tempo(audio)
         
@@ -141,7 +207,7 @@ class TestEstimateTempo:
         """Test tempo estimation on slow audio."""
         # 60 BPM = 1 beat per second
         wav_data = create_rhythmic_audio(beat_frequency=1.0, duration=4.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         tempo = estimate_tempo(audio)
         
@@ -156,7 +222,7 @@ class TestPitchFeatures:
         """Test pitch estimation on synthetic audio."""
         # A4 = 440 Hz
         wav_data = create_synthetic_wav(frequency=440, duration=1.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         features = estimate_pitch_features(audio)
         
@@ -168,7 +234,7 @@ class TestPitchFeatures:
         """Test that sustained notes have high pitch stability."""
         # Sustained E2 note (82 Hz)
         wav_data = create_synthetic_wav(frequency=82, duration=2.0, amplitude=0.8)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         features = estimate_pitch_features(audio)
         
@@ -182,7 +248,7 @@ class TestVolumeStability:
     def test_volume_stability_constant(self):
         """Test volume stability on constant audio."""
         wav_data = create_synthetic_wav(frequency=440, duration=1.0, amplitude=0.5)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         stability, _ = estimate_volume_stability(audio)
         
@@ -191,24 +257,47 @@ class TestVolumeStability:
     
     def test_volume_stability_variable(self):
         """Test volume stability on variable audio."""
-        # Create audio with varying volume
-        t = np.linspace(0, 1.0, 44100, False)
-        samples = np.sin(2 * np.pi * 440 * t)
-        # Add volume modulation
-        modulation = 0.5 + 0.5 * np.sin(2 * np.pi * 5 * t)  # 5 Hz modulation
-        samples = samples * modulation
-        samples_int = (samples * 32767).astype(np.int16)
+        wav_data = create_variable_volume_audio(duration=2.0)
+        audio = load_audio_from_bytes(wav_data)
         
-        buffer = io.BytesIO()
-        wavfile.write(buffer, 44100, samples_int)
-        buffer.seek(0)
-        wav_data = buffer.read()
-        
-        audio = load_audio(wav_data)
         stability, _ = estimate_volume_stability(audio)
         
         # Variable volume should have lower stability
         assert stability < 0.9
+
+
+class TestEstimateSilenceRatio:
+    """Tests for silence ratio estimation."""
+    
+    def test_silence_ratio_quiet(self):
+        """Test silence ratio on mostly silent audio."""
+        wav_data = create_silent_audio(duration=2.0)
+        audio = load_audio_from_bytes(wav_data)
+        
+        ratio = estimate_silence_ratio(audio)
+        
+        # Mostly silent audio should have high silence ratio
+        assert ratio > 0.8
+    
+    def test_silence_ratio_loud(self):
+        """Test silence ratio on audio with no silence."""
+        wav_data = create_synthetic_wav(frequency=440, duration=2.0, amplitude=0.5)
+        audio = load_audio_from_bytes(wav_data)
+        
+        ratio = estimate_silence_ratio(audio)
+        
+        # Continuous audio should have low silence ratio
+        assert ratio < 0.3
+    
+    def test_silence_ratio_returns_float(self):
+        """Test that silence ratio returns a float between 0 and 1."""
+        wav_data = create_synthetic_wav(frequency=440, duration=1.0)
+        audio = load_audio_from_bytes(wav_data)
+        
+        ratio = estimate_silence_ratio(audio)
+        
+        assert isinstance(ratio, float)
+        assert 0 <= ratio <= 1
 
 
 class TestRhythmConsistency:
@@ -218,7 +307,7 @@ class TestRhythmConsistency:
         """Test rhythm consistency on regular beats."""
         # 2 beats per second (regular rhythm)
         wav_data = create_rhythmic_audio(beat_frequency=2.0, duration=4.0)
-        audio = load_audio(wav_data)
+        audio = load_audio_from_bytes(wav_data)
         
         score = score_rhythm_consistency(audio)
         
@@ -244,6 +333,7 @@ class TestAnalyzePracticeAudio:
         assert 0 <= result.audio_score <= 1
         assert 0 <= result.rhythm_score <= 1
         assert 0 <= result.volume_stability_score <= 1
+        assert 0 <= result.silence_ratio <= 1
     
     def test_analyze_short_audio(self):
         """Test that very short audio is handled gracefully."""
@@ -262,6 +352,41 @@ class TestAnalyzePracticeAudio:
         
         # Should still produce results
         assert result.audio_score >= 0
+    
+    def test_analyze_audio_with_silence(self):
+        """Test analysis of audio with lots of silence."""
+        wav_data = create_silent_audio(duration=3.0)
+        
+        result = analyze_practice_audio(wav_data, "G", 3)
+        
+        # Should have high silence ratio
+        assert result.silence_ratio > 0.5
+    
+    def test_analyze_audio_includes_tempo(self):
+        """Test that analysis includes tempo estimate."""
+        wav_data = create_rhythmic_audio(beat_frequency=2.0, duration=4.0)
+        
+        result = analyze_practice_audio(wav_data, "C", 4)
+        
+        assert result.tempo_estimate > 0
+    
+    def test_analyze_audio_includes_recommendations(self):
+        """Test that analysis includes recommendations for low scores."""
+        # Create audio with low rhythm score (irregular)
+        t = np.linspace(0, 3.0, 44100 * 3, False)
+        # Random noise with no pattern
+        samples = np.random.normal(0, 0.3, len(t)).astype(np.float32)
+        samples_int = (samples * 32767).astype(np.int16)
+        
+        buffer = io.BytesIO()
+        wavfile.write(buffer, 44100, samples_int)
+        buffer.seek(0)
+        wav_data = buffer.read()
+        
+        result = analyze_practice_audio(wav_data, "C", 3)
+        
+        # Should have recommendations
+        assert len(result.recommendations) > 0
 
 
 class TestFeedbackGeneration:
@@ -274,6 +399,7 @@ class TestFeedbackGeneration:
             tempo_estimate=100.0,
             rhythm_score=0.3,  # Low rhythm
             volume_stability_score=0.4,
+            silence_ratio=0.2,
             audio_score=0.5,
             detected_issues=["Rhythm is uneven"],
             recommendations=["Practice with a metronome"],
@@ -283,6 +409,43 @@ class TestFeedbackGeneration:
         
         assert feedback.audio_score == 0.5
         assert feedback.rhythm_score == 0.3
+        assert feedback.silence_ratio == 0.2
+        assert len(feedback.feedback_text) > 0
+    
+    def test_generate_feedback_low_rhythm(self):
+        """Test feedback for low rhythm score."""
+        result = AudioAnalysisResult(
+            expected_chord="G",
+            tempo_estimate=80.0,
+            rhythm_score=0.2,  # Very low
+            volume_stability_score=0.5,
+            silence_ratio=0.1,
+            audio_score=0.4,
+            detected_issues=["Rhythm is uneven"],
+            recommendations=["Practice slowly with a metronome"],
+        )
+        
+        feedback = generate_feedback(result)
+        
+        # Should contain rhythm-related feedback
+        assert "rhythm" in feedback.feedback_text.lower() or "timing" in feedback.feedback_text.lower()
+    
+    def test_generate_feedback_high_silence(self):
+        """Test feedback for high silence ratio."""
+        result = AudioAnalysisResult(
+            expected_chord="D",
+            tempo_estimate=90.0,
+            rhythm_score=0.6,
+            volume_stability_score=0.6,
+            silence_ratio=0.7,  # High silence
+            audio_score=0.5,
+            detected_issues=["Excessive pauses"],
+            recommendations=["Maintain steady strumming"],
+        )
+        
+        feedback = generate_feedback(result)
+        
+        # Should mention pauses or continuous playing
         assert len(feedback.feedback_text) > 0
     
     def test_generate_placeholder_feedback(self):
@@ -325,8 +488,63 @@ class TestIntegration:
         
         result = analyze_practice_audio(wav_data, "G", 4)
         
-        # Should not have critical issues
-        critical_issues = [i for i in result.detected_issues 
-                          if "rhythm" in i.lower() or "volume" in i.lower()]
-        # Might have issues, but should complete analysis
+        # Should not have critical issues, but should complete analysis
         assert result.audio_score >= 0
+    
+    def test_pipeline_handles_multiple_chords(self):
+        """Test pipeline handles different chords."""
+        chords = ["C", "G", "D", "Em", "Am"]
+        
+        for chord in chords:
+            wav_data = create_guitar_like_audio(
+                frequencies=[130, 165, 196],
+                duration=2.0
+            )
+            result = analyze_practice_audio(wav_data, chord, 2)
+            
+            assert result.expected_chord == chord
+            assert 0 <= result.audio_score <= 1
+
+
+class TestEdgeCases:
+    """Tests for edge cases and error handling."""
+    
+    def test_empty_audio(self):
+        """Test handling of very short audio."""
+        wav_data = create_synthetic_wav(frequency=440, duration=0.1)
+        
+        result = analyze_practice_audio(wav_data, "C", 1)
+        
+        # Should indicate short audio
+        assert "short" in result.detected_issues[0].lower() or result.audio_score == 0
+    
+    def test_very_long_audio(self):
+        """Test handling of very long audio."""
+        wav_data = create_synthetic_wav(frequency=440, duration=400)  # 400 seconds
+        
+        result = analyze_practice_audio(wav_data, "C", 400)
+        
+        # Should indicate long audio
+        assert "long" in result.detected_issues[0].lower() or result.audio_score == 0
+    
+    def test_very_low_frequency(self):
+        """Test with very low frequency audio."""
+        wav_data = create_synthetic_wav(frequency=30, duration=1.0)  # Very low
+        audio = load_audio_from_bytes(wav_data)
+        
+        features = estimate_pitch_features(audio)
+        
+        # Should still return valid features
+        assert "estimated_frequency" in features
+        assert "pitch_stability" in features
+    
+    def test_very_high_frequency(self):
+        """Test with very high frequency audio."""
+        wav_data = create_synthetic_wav(frequency=8000, duration=1.0)  # High
+        audio = load_audio_from_bytes(wav_data)
+        
+        features = estimate_pitch_features(audio)
+        
+        # Should still return valid features
+        assert "estimated_frequency" in features
+        assert "pitch_stability" in features

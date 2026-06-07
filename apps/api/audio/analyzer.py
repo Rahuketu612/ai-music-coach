@@ -6,6 +6,7 @@ This module provides simple audio analysis features for beginner guitar practice
 - Pitch feature extraction
 - Volume stability analysis
 - Rhythm consistency scoring
+- Silence detection
 
 Note: This is NOT a perfect chord recognition system. It extracts basic metrics
 from audio that can help beginners understand their playing patterns.
@@ -14,7 +15,7 @@ from audio that can help beginners understand their playing patterns.
 import io
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
 from scipy import signal
 from scipy.io import wavfile
 from scipy.fft import fft
@@ -36,23 +37,78 @@ class AudioAnalysisResult:
     tempo_estimate: float  # BPM
     rhythm_score: float  # 0-1
     volume_stability_score: float  # 0-1
+    silence_ratio: float  # 0-1, ratio of silent portions
     audio_score: float  # 0-1
     detected_issues: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
     
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         return {
-            "expected_chord": self.expected_chord,
             "tempo_estimate": round(self.tempo_estimate, 1),
             "rhythm_score": round(self.rhythm_score, 2),
             "volume_stability_score": round(self.volume_stability_score, 2),
+            "silence_ratio": round(self.silence_ratio, 2),
             "audio_score": round(self.audio_score, 2),
-            "detected_issues": self.detected_issues,
+            "issues": self.detected_issues,
             "recommendations": self.recommendations,
         }
 
 
-def load_audio(file_content: bytes) -> AudioData:
+def load_audio(file_path: str) -> AudioData:
+    """
+    Load audio from file path (WAV format).
+    
+    Supports 16-bit and 32-bit WAV formats.
+    Converts stereo to mono and normalizes amplitude to [-1, 1] range.
+    
+    Args:
+        file_path: Path to the audio file
+        
+    Returns:
+        AudioData object containing loaded audio
+    """
+    try:
+        sample_rate, samples = wavfile.read(file_path)
+    except Exception as e:
+        raise ValueError(f"Could not load audio file: {e}")
+    
+    # Convert to mono if stereo
+    if len(samples.shape) > 1:
+        samples = np.mean(samples, axis=1)
+    
+    # Normalize to float range [-1, 1]
+    if samples.dtype == np.int16:
+        samples = samples.astype(np.float32) / 32768.0
+    elif samples.dtype == np.int32:
+        samples = samples.astype(np.float32) / 2147483648.0
+    elif samples.dtype == np.uint8:
+        samples = (samples.astype(np.float32) - 128) / 128.0
+    
+    duration = len(samples) / sample_rate
+    channels = 1 if len(samples.shape) == 1 else samples.shape[1]
+    
+    return AudioData(
+        samples=samples,
+        sample_rate=sample_rate,
+        duration=duration,
+        channels=channels,
+    )
+
+
+def extract_duration(audio: AudioData) -> float:
+    """
+    Extract the duration of the audio in seconds.
+    
+    Args:
+        audio: AudioData object
+        
+    Returns:
+        Duration in seconds
+    """
+    return audio.duration
+
+
+def load_audio_from_bytes(file_content: bytes) -> AudioData:
     """
     Load audio from file content (bytes).
     
@@ -94,6 +150,44 @@ def load_audio(file_content: bytes) -> AudioData:
         duration=duration,
         channels=channels,
     )
+
+
+def estimate_silence_ratio(audio: AudioData, threshold_db: float = -40.0) -> float:
+    """
+    Estimate the ratio of silence to total audio.
+    
+    Args:
+        audio: AudioData object
+        threshold_db: Silence threshold in dB (default: -40 dB)
+        
+    Returns:
+        Ratio of silence to total audio (0-1)
+    """
+    samples = audio.samples
+    sample_rate = audio.sample_rate
+    
+    # Calculate RMS in short windows
+    window_ms = 50
+    window_samples = int(sample_rate * window_ms / 1000)
+    num_windows = len(samples) // window_samples
+    
+    if num_windows == 0:
+        return 1.0
+    
+    # Convert threshold from dB to linear amplitude
+    threshold_linear = 10 ** (threshold_db / 20.0)
+    
+    silent_windows = 0
+    for i in range(num_windows):
+        start = i * window_samples
+        end = start + window_samples
+        window = samples[start:end]
+        rms = np.sqrt(np.mean(window ** 2))
+        if rms < threshold_linear:
+            silent_windows += 1
+    
+    silence_ratio = silent_windows / num_windows
+    return float(np.clip(silence_ratio, 0, 1))
 
 
 def estimate_tempo(audio: AudioData, min_bpm: float = 40, max_bpm: float = 200) -> float:
@@ -377,7 +471,7 @@ def analyze_practice_audio(
         AudioAnalysisResult with metrics and recommendations
     """
     # Load audio
-    audio = load_audio(file_content)
+    audio = load_audio_from_bytes(file_content)
     
     # Validate duration (with some tolerance)
     if duration_seconds is not None:
@@ -393,6 +487,7 @@ def analyze_practice_audio(
             tempo_estimate=0,
             rhythm_score=0,
             volume_stability_score=0,
+            silence_ratio=1.0,
             audio_score=0,
             detected_issues=["Audio recording is too short"],
             recommendations=["Please record a longer practice session (at least 5 seconds)"],
@@ -404,6 +499,7 @@ def analyze_practice_audio(
             tempo_estimate=0,
             rhythm_score=0,
             volume_stability_score=0,
+            silence_ratio=0.0,
             audio_score=0,
             detected_issues=["Audio recording is too long"],
             recommendations=["Please keep practice sessions under 5 minutes"],
@@ -414,16 +510,22 @@ def analyze_practice_audio(
     pitch_features = estimate_pitch_features(audio)
     volume_stability, _ = estimate_volume_stability(audio)
     rhythm_score = score_rhythm_consistency(audio)
+    silence_ratio = estimate_silence_ratio(audio)
     
     # Calculate overall audio score (weighted combination)
-    clarity_weight = 0.3
-    stability_weight = 0.3
-    rhythm_weight = 0.4
+    clarity_weight = 0.25
+    stability_weight = 0.25
+    rhythm_weight = 0.35
+    silence_weight = 0.15
+    
+    # Penalize for high silence ratio
+    effective_silence = 1.0 - silence_ratio
     
     audio_score = (
         pitch_features["clarity"] * clarity_weight +
         volume_stability * stability_weight +
-        rhythm_score * rhythm_weight
+        rhythm_score * rhythm_weight +
+        effective_silence * silence_weight
     )
     
     # Detect issues
@@ -433,6 +535,10 @@ def analyze_practice_audio(
     if rhythm_score < 0.4:
         detected_issues.append("Rhythm is uneven")
         recommendations.append("Practice slowly with a metronome to improve timing")
+    
+    if silence_ratio > 0.5:
+        detected_issues.append("Excessive pauses in playing")
+        recommendations.append("Focus on maintaining a steady strumming pattern without long pauses")
     
     if volume_stability < 0.4:
         detected_issues.append("Volume varies significantly")
@@ -462,6 +568,7 @@ def analyze_practice_audio(
         tempo_estimate=tempo,
         rhythm_score=rhythm_score,
         volume_stability_score=volume_stability,
+        silence_ratio=silence_ratio,
         audio_score=audio_score,
         detected_issues=detected_issues,
         recommendations=recommendations,
