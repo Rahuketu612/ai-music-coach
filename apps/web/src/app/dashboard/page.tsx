@@ -17,6 +17,7 @@ interface PracticeStats {
   total_practice_time: number;
   average_audio_score: number;
   average_rhythm_score: number;
+  average_posture_score?: number;
   chords_practiced: string[];
 }
 
@@ -120,6 +121,33 @@ export default function DashboardPage() {
           sublabel="Overall performance"
         />
       </div>
+
+      {/* Posture Stats Card */}
+      {stats?.average_posture_score !== undefined && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-violet-200 mb-8">
+          <div className="flex items-center gap-4">
+            <div className="text-4xl">🖐️</div>
+            <div className="flex-1">
+              <p className="text-sm text-slate-500">Average Posture Score</p>
+              <p className="text-3xl font-bold text-violet-600">
+                {Math.round(stats.average_posture_score * 100)}%
+              </p>
+            </div>
+            <div className="w-32">
+              <div className="w-full bg-slate-200 rounded-full h-3">
+                <div
+                  className="bg-violet-500 h-3 rounded-full transition-all"
+                  style={{ width: `${(stats.average_posture_score || 0) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+          <p className="text-sm text-slate-500 mt-3">
+            Based on {stats.total_sessions} hand position analyses. 
+            Enable camera during practice to track your posture.
+          </p>
+        </div>
+      )}
 
       {/* Practice History */}
       <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mb-8">

@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import health, version
 from practice.routes import router as practice_router
+from vision.routes import router as vision_router
 from db import init_db
 
 
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Music Coach API",
     description="API for AI-powered guitar practice coaching",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -35,6 +36,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(version.router, prefix="/api", tags=["Info"])
 app.include_router(practice_router)
+app.include_router(vision_router)
 
 
 @app.get("/")

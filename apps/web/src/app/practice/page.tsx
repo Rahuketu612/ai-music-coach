@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 const CHORDS = ["C", "G", "D", "Em", "Am"];
 
@@ -14,6 +14,16 @@ interface PracticeResult {
   created_at: string;
 }
 
+interface VisionResult {
+  hand_visible: boolean;
+  confidence_score: number;
+  posture_score: number;
+  detected_issues: string[];
+  recommendations: string[];
+  feedback_text: string;
+  analyzer_mode: string;
+}
+
 export default function PracticePage() {
   const [selectedChord, setSelectedChord] = useState<string>("C");
   const [isPracticing, setIsPracticing] = useState(false);
@@ -23,15 +33,106 @@ export default function PracticePage() {
   const [result, setResult] = useState<PracticeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   
+  // Camera state
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
+  
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      // Clean up camera stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
+
+  const startCamera = useCallback(async () => {
+    try {
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: 640, height: 480 }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraEnabled(true);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setCameraError("Unable to access camera. Please check permissions.");
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setCameraEnabled(false);
+  }, []);
+
+  const captureFrame = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) return null;
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0);
+      return canvas.toDataURL("image/jpeg", 0.8);
+    }
+    return null;
+  }, []);
+
+  const analyzeFrame = useCallback(async () => {
+    const frameData = captureFrame();
+    if (!frameData) {
+      setError("Failed to capture frame");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setError(null);
+
+    try {
+      // Convert data URL to blob
+      const response = await fetch(frameData);
+      const blob = await response.blob();
+      
+      const formData = new FormData();
+      formData.append("image", blob, "frame.jpg");
+
+      const apiResponse = await fetch("http://localhost:8000/api/vision/analyze-frame", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!apiResponse.ok) {
+        throw new Error("Vision analysis failed");
+      }
+
+      const data = await apiResponse.json();
+      setVisionResult(data);
+    } catch (err) {
+      console.error("Vision analysis error:", err);
+      setError("Vision analysis failed. Make sure the API is running.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [captureFrame]);
 
   const startPractice = () => {
     setIsPracticing(true);
@@ -129,6 +230,143 @@ export default function PracticePage() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Vision Camera Section */}
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Hand Position Analysis</h2>
+            <p className="text-sm text-slate-500 mt-1">
+              🔒 Privacy: Images are analyzed and immediately discarded, not stored.
+            </p>
+          </div>
+          {!cameraEnabled ? (
+            <button
+              onClick={startCamera}
+              className="px-6 py-3 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700 transition-colors"
+            >
+              📷 Enable Camera
+            </button>
+          ) : (
+            <button
+              onClick={stopCamera}
+              className="px-6 py-3 bg-slate-600 text-white rounded-lg font-semibold hover:bg-slate-700 transition-colors"
+            >
+              Stop Camera
+            </button>
+          )}
+        </div>
+
+        {cameraError && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-amber-700">{cameraError}</p>
+          </div>
+        )}
+
+        {cameraEnabled && (
+          <div className="space-y-4">
+            <div className="relative bg-slate-900 rounded-lg overflow-hidden">
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full max-w-lg mx-auto block"
+              />
+              <canvas ref={canvasRef} className="hidden" />
+            </div>
+            
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={analyzeFrame}
+                disabled={isAnalyzing}
+                className={`px-8 py-4 rounded-lg font-semibold text-lg transition-colors ${
+                  isAnalyzing
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-violet-600 text-white hover:bg-violet-700"
+                }`}
+              >
+                {isAnalyzing ? "📸 Analyzing..." : "📸 Capture & Analyze"}
+              </button>
+            </div>
+
+            {visionResult && (
+              <div className={`mt-6 p-6 rounded-lg border-2 ${
+                visionResult.hand_visible 
+                  ? "bg-green-50 border-green-200" 
+                  : "bg-amber-50 border-amber-200"
+              }`}>
+                <h3 className="text-lg font-bold text-slate-900 mb-4">
+                  {visionResult.hand_visible ? "✓ Hand Detected" : "⚠️ Hand Not Detected"}
+                </h3>
+                
+                <div className="grid md:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-white p-4 rounded-lg">
+                    <p className="text-sm text-slate-500 mb-1">Detection Confidence</p>
+                    <p className="text-2xl font-bold text-violet-600">
+                      {Math.round(visionResult.confidence_score * 100)}%
+                    </p>
+                    <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-violet-500 h-2 rounded-full"
+                        style={{ width: `${visionResult.confidence_score * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg">
+                    <p className="text-sm text-slate-500 mb-1">Posture Score</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {Math.round(visionResult.posture_score * 100)}%
+                    </p>
+                    <div className="w-full bg-slate-200 rounded-full h-2 mt-2">
+                      <div
+                        className="bg-emerald-500 h-2 rounded-full"
+                        style={{ width: `${visionResult.posture_score * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {visionResult.detected_issues.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-slate-700 mb-2">Detected Issues:</p>
+                    <ul className="list-disc list-inside text-sm text-slate-600">
+                      {visionResult.detected_issues.map((issue, idx) => (
+                        <li key={idx}>{issue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {visionResult.recommendations.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-slate-700 mb-2">Recommendations:</p>
+                    <ul className="list-disc list-inside text-sm text-slate-600">
+                      {visionResult.recommendations.map((rec, idx) => (
+                        <li key={idx}>{rec}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-sm text-slate-500 mb-1">Coach Feedback</p>
+                  <p className="text-slate-800">{visionResult.feedback_text}</p>
+                </div>
+
+                {visionResult.analyzer_mode === "fallback" && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-blue-700">
+                      <strong>Note:</strong> Using fallback analyzer. Install MediaPipe for 
+                      enhanced hand detection: <code>pip install mediapipe</code>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Practice Session */}

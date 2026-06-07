@@ -19,40 +19,65 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 
 ### 2. Frontend Pages
 - [x] Landing page with hero section and feature highlights
-- [x] Practice page with practice mode selection (placeholders allowed)
-- [x] Dashboard page with progress statistics (empty state)
+- [x] Practice page with practice mode selection and camera analysis
+- [x] Dashboard page with progress statistics including posture metrics
 - [x] Navigation bar (Home, Practice, Dashboard)
 
 ### 3. Backend API
 - [x] GET /health - Health check endpoint
 - [x] GET /api/version - Returns app name and version
-- [ ] GET /api/sessions - List practice sessions (planned)
-- [ ] POST /api/sessions - Create practice session (planned)
+- [x] GET /api/practice/sessions - List practice sessions
+- [x] POST /api/practice/session - Create practice session
+- [x] GET /api/practice/stats - Practice statistics
+- [x] GET /api/vision/status - Vision system status
+- [x] POST /api/vision/analyze-frame - Analyze camera frame
 
-### 4. API Tests
+### 4. Audio Analysis Engine
+- [x] Audio file upload and processing
+- [x] Tempo estimation
+- [x] Rhythm consistency scoring
+- [x] Volume stability analysis
+- [x] Silence detection
+- [x] Audio feedback generation
+
+### 5. Vision Engine (v1)
+- [x] Camera access and frame capture
+- [x] Hand visibility detection (MediaPipe or fallback)
+- [x] Basic posture scoring
+- [x] Vision feedback display
+- [x] Privacy: images analyzed and discarded, not stored
+
+### 6. API Tests
 - [x] Test health endpoint returns status ok
 - [x] Test version endpoint returns correct format
+- [x] Test practice session creation
+- [x] Test practice statistics
+- [x] Test vision analysis endpoints
+- [x] Test vision fallback behavior
 
-### 5. Documentation
+### 7. Documentation
 - [x] README.md with setup instructions
 - [x] PRD.md with product requirements
 - [x] ARCHITECTURE.md with system overview
 - [x] MVP_SCOPE.md (this file)
-- [ ] ROADMAP.md with development timeline
+- [x] ROADMAP.md with development timeline
+- [x] VISION_ENGINE.md with vision system documentation
+- [x] AUDIO_ENGINE.md with audio analysis documentation
 
 ## Out of Scope (Post-MVP)
 
 ### Features Not in MVP
-- Microphone audio capture and analysis
-- Camera-based hand position detection
-- Real-time chord recognition
+- Real-time video stream processing
+- Chord shape recognition/detection
+- Augmented reality overlays
 - User authentication/accounts
-- Persistent user data storage
 - Advanced progress analytics
-- Practice recommendations
+- Practice recommendations engine
 - Achievement system implementation
 - Social features
 - Mobile app
+- Face detection
+- Multi-hand tracking
 
 ### Technical Not in MVP
 - WebSocket connections for real-time communication
@@ -62,6 +87,8 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 - API authentication/authorization
 - Rate limiting
 - Logging and monitoring infrastructure
+- Video recording and storage
+- Cloud vision API integration
 
 ## MVP Success Criteria
 

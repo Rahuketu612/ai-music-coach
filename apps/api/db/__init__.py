@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field, ConfigDict
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text, Index
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text, Boolean, Index
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 
 # Database URL configuration
@@ -35,7 +35,7 @@ Base = declarative_base()
 
 # SQLAlchemy Model
 class PracticeSessionDB(Base):
-    """Practice session database model with audio analysis metrics."""
+    """Practice session database model with audio and vision analysis metrics."""
     __tablename__ = "practice_sessions"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -50,6 +50,11 @@ class PracticeSessionDB(Base):
     volume_stability_score = Column(Float, default=0.0)
     tempo_estimate = Column(Float, default=0.0)
     silence_ratio = Column(Float, default=0.0)
+    
+    # Vision analysis metrics (posture and hand visibility)
+    posture_score = Column(Float, nullable=True)  # 0-1, null if no camera analysis
+    hand_visible = Column(Boolean, nullable=True)  # Whether hands were detected
+    vision_confidence = Column(Float, nullable=True)  # Detection confidence
     
     # Feedback and recommendations
     feedback_text = Column(Text, nullable=True)
@@ -86,6 +91,10 @@ class PracticeSessionResponse(BaseModel):
     feedback_text: Optional[str] = None
     detected_issues: Optional[str] = None
     recommendations: Optional[str] = None
+    # Vision analysis fields
+    posture_score: Optional[float] = None
+    hand_visible: Optional[bool] = None
+    vision_confidence: Optional[float] = None
 
 
 class PracticeSessionList(BaseModel):
@@ -100,6 +109,7 @@ class PracticeStats(BaseModel):
     average_audio_score: float
     average_rhythm_score: float
     average_volume_stability: float
+    average_posture_score: Optional[float] = None  # New: from vision analysis
     chords_practiced: List[str]
     session_count_by_chord: dict
 

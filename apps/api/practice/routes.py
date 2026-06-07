@@ -190,6 +190,12 @@ async def get_practice_stats(db: Session = Depends(get_db)):
     avg_rhythm_score = sum(s.rhythm_score for s in sessions) / total_sessions
     avg_volume_stability = sum(s.volume_stability_score for s in sessions) / total_sessions
     
+    # Calculate average posture score (only from sessions with vision data)
+    sessions_with_posture = [s for s in sessions if s.posture_score is not None]
+    avg_posture_score = None
+    if sessions_with_posture:
+        avg_posture_score = sum(s.posture_score for s in sessions_with_posture) / len(sessions_with_posture)
+    
     # Count sessions by chord
     session_count_by_chord = {}
     for s in sessions:
@@ -207,6 +213,7 @@ async def get_practice_stats(db: Session = Depends(get_db)):
         average_audio_score=round(avg_audio_score, 2),
         average_rhythm_score=round(avg_rhythm_score, 2),
         average_volume_stability=round(avg_volume_stability, 2),
+        average_posture_score=round(avg_posture_score, 2) if avg_posture_score is not None else None,
         chords_practiced=chords_practiced,
         session_count_by_chord=session_count_by_chord,
     )
