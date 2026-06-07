@@ -17,11 +17,17 @@ export const Dashboard: React.FC = () => {
   const [history, setHistory] = useState<ReadinessHistory | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Check if demo data exists
+        const demoInfo = await apiService.getDemoInfo().catch(() => null);
+        setIsDemo(demoInfo?.is_demo || false);
+        
         const [readinessData, historyData] = await Promise.all([
           apiService.getReadiness(),
           apiService.getReadinessHistory(30).catch(() => null),
@@ -69,6 +75,27 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Demo Mode Banner */}
+      {isDemo && (
+        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-800">⚠️</span>
+              <span className="text-yellow-800 font-medium">Demo Mode</span>
+            </div>
+            <p className="text-yellow-700 text-sm">
+              This data is synthetic for demonstration. 
+              <button 
+                onClick={() => apiService.clearDemoData().then(() => window.location.reload())}
+                className="ml-2 underline hover:no-underline"
+              >
+                Clear demo data
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

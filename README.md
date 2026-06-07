@@ -29,6 +29,22 @@ Personalized, beginner-friendly feedback based on your practice data:
 - **Next Exercise**: Specific, actionable exercise recommendation
 - **Session Feedback**: What went well and what to improve
 
+### Demo Mode
+Try the product without account or equipment:
+
+- **10 Realistic Sessions**: Pre-generated practice data
+- **Full Dashboard Access**: See all features
+- **No Camera/Mic Required**: Explore without permissions
+- **Clear Demo Label**: Always visible when using demo data
+
+### First-Time Onboarding
+Personalized setup for beginners:
+
+- Choose your guitar ownership status
+- Select your practice goal
+- Understand privacy and data use
+- Get recommended practice path
+
 ## Quick Start
 
 ### Backend
@@ -67,6 +83,8 @@ npm run dev
 
 - [Readiness Score Guide](docs/READINESS_SCORE.md)
 - [Coach Engine Guide](docs/COACH_ENGINE.md)
+- [Demo Script](docs/DEMO_SCRIPT.md)
+- [Limitations](docs/LIMITATIONS.md)
 - [MVP Scope](docs/MVP_SCOPE.md)
 
 ## Tech Stack

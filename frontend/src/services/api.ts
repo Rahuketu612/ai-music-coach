@@ -86,6 +86,19 @@ class ApiService {
     return this.fetch<FocusArea>("/api/coach/focus-area");
   }
 
+  // Demo endpoints
+  async getDemoInfo(): Promise<any> {
+    return this.fetch<any>("/demo/info");
+  }
+
+  async seedDemoData(): Promise<any> {
+    return this.fetch<any>("/demo/seed", { method: "POST" });
+  }
+
+  async clearDemoData(): Promise<any> {
+    return this.fetch<any>("/demo/clear", { method: "POST" });
+  }
+
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     return this.fetch<{ status: string }>("/health");

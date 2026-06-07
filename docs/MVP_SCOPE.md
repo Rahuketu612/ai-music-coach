@@ -54,6 +54,27 @@ AI-powered guitar practice coach that uses audio and vision analysis to provide 
 - [x] Exercise library
 - [x] Transparency notices (no LLM/AI claims)
 
+### Demo Mode (Complete)
+- [x] Demo data generation (10 realistic sessions)
+- [x] Demo mode detection
+- [x] Demo seeding and clearing endpoints
+- [x] Demo mode banner on dashboard
+- [x] Demo label for synthetic data
+
+### Onboarding Flow (Complete)
+- [x] Guitar ownership selection
+- [x] Practice goal selection
+- [x] Camera/microphone consent
+- [x] Privacy explanation
+- [x] Recommended path generation
+
+### Beta Demo Polish (Complete)
+- [x] Landing page with product positioning
+- [x] Privacy & trust section
+- [x] Clear "What We're NOT" section
+- [x] Demo script documentation
+- [x] Limitations documentation
+
 ## Not Included in MVP
 
 ### Future Phases
