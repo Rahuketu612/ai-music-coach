@@ -21,6 +21,14 @@ A transparent, deterministic scoring system that helps beginners track their pro
 | Ready for First Guitar | 50-69 | Good foundation |
 | Ready for Real Guitar Mode | 70+ | Advanced practice ready |
 
+### Coach Engine v1
+Personalized, beginner-friendly feedback based on your practice data:
+
+- **Today's Recommendation**: Customized guidance based on current readiness
+- **Focus Area**: Identifies your lowest-scoring component
+- **Next Exercise**: Specific, actionable exercise recommendation
+- **Session Feedback**: What went well and what to improve
+
 ## Quick Start
 
 ### Backend
@@ -40,14 +48,25 @@ npm run dev
 
 ## API Endpoints
 
-- `GET /api/practice/readiness` - Get current readiness score
-- `GET /api/practice/readiness/history` - Get readiness history
+### Practice Sessions
 - `POST /api/practice/sessions` - Create practice session
 - `GET /api/practice/sessions` - List sessions
+- `GET /api/practice/sessions/{id}` - Get session by ID
+
+### Readiness
+- `GET /api/practice/readiness` - Get current readiness score
+- `GET /api/practice/readiness/history` - Get readiness history
+
+### Coach
+- `GET /api/coach/today` - Today's coach recommendation
+- `GET /api/coach/plan` - Recommended practice plan
+- `GET /api/coach/session/{id}` - Session coach feedback
+- `GET /api/coach/focus-area` - Top focus area
 
 ## Documentation
 
 - [Readiness Score Guide](docs/READINESS_SCORE.md)
+- [Coach Engine Guide](docs/COACH_ENGINE.md)
 - [MVP Scope](docs/MVP_SCOPE.md)
 
 ## Tech Stack
@@ -58,7 +77,9 @@ npm run dev
 
 ## ⚠️ Transparency Notice
 
-The Readiness Score is an **educational estimate** based on practice quality, rhythm, posture, and consistency. It does **NOT** certify musical mastery. This is a tool to help track progress, not a replacement for professional instruction.
+The Readiness Score and Coach feedback are **educational estimates** based on practice quality, rhythm, posture, and consistency. They do **NOT** certify musical mastery. This is a tool to help track progress, not a replacement for professional instruction.
+
+**No LLM/AI**: All feedback is generated through deterministic rules based on your actual practice data.
 
 ## License
 

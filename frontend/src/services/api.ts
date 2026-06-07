@@ -7,6 +7,8 @@ import type {
   ReadinessHistory,
   PracticeSession,
   SessionCreateRequest,
+  CoachFeedback,
+  FocusArea,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -61,6 +63,27 @@ class ApiService {
 
   async getSessions(limit: number = 50): Promise<PracticeSession[]> {
     return this.fetch<PracticeSession[]>(`/api/practice/sessions?limit=${limit}`);
+  }
+
+  async getSession(sessionId: string): Promise<PracticeSession> {
+    return this.fetch<PracticeSession>(`/api/practice/sessions/${sessionId}`);
+  }
+
+  // Coach endpoints
+  async getCoachToday(): Promise<CoachFeedback> {
+    return this.fetch<CoachFeedback>("/api/coach/today");
+  }
+
+  async getCoachPlan(): Promise<CoachFeedback> {
+    return this.fetch<CoachFeedback>("/api/coach/plan");
+  }
+
+  async getSessionCoachFeedback(sessionId: string): Promise<CoachFeedback> {
+    return this.fetch<CoachFeedback>(`/api/coach/session/${sessionId}`);
+  }
+
+  async getFocusArea(): Promise<FocusArea> {
+    return this.fetch<FocusArea>("/api/coach/focus-area");
   }
 
   // Health check

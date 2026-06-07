@@ -42,6 +42,18 @@ AI-powered guitar practice coach that uses audio and vision analysis to provide 
 - [x] Practice session score display
 - [x] Transparency notices
 
+### Coach Engine v1 (Complete)
+- [x] Session feedback generation
+- [x] Readiness-based feedback
+- [x] Practice plan generation
+- [x] Focus area identification
+- [x] Beginner encouragement
+- [x] API endpoints for coach
+- [x] Dashboard coach card
+- [x] Practice result coach feedback
+- [x] Exercise library
+- [x] Transparency notices (no LLM/AI claims)
+
 ## Not Included in MVP
 
 ### Future Phases
@@ -85,10 +97,17 @@ AI-powered guitar practice coach that uses audio and vision analysis to provide 
 ### Practice Sessions
 - `POST /api/practice/sessions` - Create session
 - `GET /api/practice/sessions` - List sessions
+- `GET /api/practice/sessions/{id}` - Get session by ID
 
 ### Readiness
 - `GET /api/practice/readiness` - Get readiness score
 - `GET /api/practice/readiness/history` - Get readiness history
+
+### Coach
+- `GET /api/coach/today` - Today's coach recommendation
+- `GET /api/coach/plan` - Recommended practice plan
+- `GET /api/coach/session/{id}` - Session coach feedback
+- `GET /api/coach/focus-area` - Top focus area
 
 ## File Structure
 

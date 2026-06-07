@@ -418,3 +418,75 @@ class TestEdgeCases:
         assert "history" in data
         assert "trend" in data
         assert "total_sessions" in data
+
+
+class TestGetSessionById:
+    """Tests for GET /api/practice/sessions/{session_id} endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_session_by_id_not_found(self, client):
+        """Test getting non-existent session."""
+        response = await client.get("/api/practice/sessions/nonexistent_id")
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_get_session_by_id_success(self, client):
+        """Test getting existing session by ID."""
+        # Create a session
+        create_response = await client.post(
+            "/api/practice/sessions",
+            json={
+                "user_id": "test_user",
+                "duration_minutes": 30,
+                "audio_metrics": {
+                    "clarity_score": 80,
+                    "pitch_accuracy": 75,
+                    "frequency_stability": 70,
+                    "noise_level": 65,
+                },
+                "vision_metrics": {
+                    "posture_score": 85,
+                    "strumming_form": 80,
+                    "hand_position": 75,
+                    "timing_visual": 70,
+                },
+                "rhythm_consistency": 78,
+                "tempo_maintained": 85,
+            },
+        )
+        assert create_response.status_code == 200
+        session_id = create_response.json()["session_id"]
+        
+        # Get session by ID
+        response = await client.get(f"/api/practice/sessions/{session_id}")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["session_id"] == session_id
+        assert data["user_id"] == "test_user"
+        assert data["duration_minutes"] == 30
+        assert data["audio_metrics"] is not None
+        assert data["vision_metrics"] is not None
+
+    @pytest.mark.asyncio
+    async def test_get_session_by_id_minimal(self, client):
+        """Test getting session with minimal data."""
+        # Create minimal session
+        create_response = await client.post(
+            "/api/practice/sessions",
+            json={
+                "user_id": "test_user",
+                "duration_minutes": 15,
+            },
+        )
+        session_id = create_response.json()["session_id"]
+        
+        # Get session by ID
+        response = await client.get(f"/api/practice/sessions/{session_id}")
+        assert response.status_code == 200
+        
+        data = response.json()
+        assert data["session_id"] == session_id
+        assert data["duration_minutes"] == 15
+        assert data["audio_metrics"] is None
+        assert data["vision_metrics"] is None

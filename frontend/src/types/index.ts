@@ -117,3 +117,28 @@ export const SCORE_WEIGHTS = {
   posture: { weight: 0.20, label: "Posture & Form" },
   consistency: { weight: 0.20, label: "Practice Consistency" },
 };
+
+// Coach Feedback Types
+export interface CoachFeedback {
+  summary: string;
+  what_went_well: string[];
+  needs_work: string[];
+  why_it_matters: string;
+  next_exercise: string;
+  recommended_duration_minutes: number;
+  encouragement: string;
+}
+
+export interface FocusArea {
+  focus_area: string;
+  score: number;
+}
+
+// Focus area labels
+export const FOCUS_AREA_LABELS: Record<string, string> = {
+  audio: "Audio Quality",
+  rhythm: "Rhythm Consistency",
+  volume: "Volume Stability",
+  posture: "Posture & Form",
+  consistency: "Practice Consistency",
+};

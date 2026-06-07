@@ -7,6 +7,7 @@
 import React from "react";
 import { ReadinessCard } from "../components/dashboard";
 import { TransparencyNotice } from "../components/dashboard/TransparencyNotice";
+import { CoachCard } from "../components/dashboard/CoachCard";
 import { useState, useEffect } from "react";
 import type { ReadinessScore, ReadinessHistory } from "../types";
 import { apiService } from "../services/api";
@@ -77,9 +78,9 @@ export const Dashboard: React.FC = () => {
 
         {/* Main content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Readiness Score Card - spans 2 columns */}
+          {/* Coach Card - spans 2 columns */}
           <div className="lg:col-span-2">
-            {readiness && <ReadinessCard initialData={readiness} />}
+            <CoachCard />
           </div>
 
           {/* Sidebar */}
@@ -133,10 +134,17 @@ export const Dashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-
-            {/* Transparency Notice */}
-            <TransparencyNotice />
           </div>
+        </div>
+
+        {/* Readiness Score Card - full width */}
+        <div className="mt-6">
+          {readiness && <ReadinessCard initialData={readiness} />}
+        </div>
+
+        {/* Transparency Notice */}
+        <div className="mt-6">
+          <TransparencyNotice />
         </div>
 
         {/* Recent Sessions History */}

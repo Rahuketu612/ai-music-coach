@@ -36,6 +36,7 @@ export const Practice: React.FC = () => {
 
   // Result state
   const [sessionResult, setSessionResult] = useState<ReadinessScore | null>(null);
+  const [coachFeedback, setCoachFeedback] = useState<any | null>(null);
   const [previousScore, setPreviousScore] = useState<number | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,7 +92,7 @@ export const Practice: React.FC = () => {
     // Submit session
     setIsSubmitting(true);
     try {
-      await apiService.createSession({
+      const session = await apiService.createSession({
         user_id: "default_user", // In production, use authenticated user
         duration_minutes: Math.max(1, Math.round(duration / 60)),
         audio_metrics: audioMetrics,
@@ -103,6 +104,14 @@ export const Practice: React.FC = () => {
       // Get updated readiness
       const updatedReadiness = await apiService.getReadiness();
       setSessionResult(updatedReadiness);
+
+      // Get coach feedback for this session
+      try {
+        const feedback = await apiService.getSessionCoachFeedback(session.session_id);
+        setCoachFeedback(feedback);
+      } catch {
+        // Coach feedback is optional, ignore errors
+      }
     } catch (error) {
       console.error("Failed to submit session:", error);
     } finally {
@@ -112,6 +121,7 @@ export const Practice: React.FC = () => {
 
   const handleDismissResult = () => {
     setSessionResult(null);
+    setCoachFeedback(null);
     setIsActive(false);
     setDuration(0);
   };
@@ -120,11 +130,30 @@ export const Practice: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Session Result Modal */}
       {sessionResult && (
-        <SessionScore
-          sessionScore={sessionResult}
-          previousScore={previousScore}
-          onDismiss={handleDismissResult}
-        />
+        <>
+          <SessionScore
+            sessionScore={sessionResult}
+            previousScore={previousScore}
+            onDismiss={handleDismissResult}
+          />
+          {/* Coach Feedback */}
+          {coachFeedback && (
+            <div className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white p-4 shadow-lg">
+              <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">🎯 Coach Feedback</p>
+                    <p className="text-blue-100 text-sm">{coachFeedback.next_exercise}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-blue-200">Recommended: {coachFeedback.recommended_duration_minutes} min</p>
+                  </div>
+                </div>
+                <p className="text-sm text-blue-100 mt-2 italic">&quot;{coachFeedback.encouragement}&quot;</p>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div className="max-w-4xl mx-auto px-4 py-8">

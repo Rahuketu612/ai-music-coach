@@ -7,7 +7,7 @@ FastAPI application for the guitar practice coach.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from apps.api.routes import readiness
+from apps.api.routes import readiness, coach
 
 app = FastAPI(
     title="AI Music Coach API",
@@ -26,6 +26,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(readiness.router)
+app.include_router(coach.router)
 
 
 @app.get("/")

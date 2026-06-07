@@ -12,6 +12,8 @@ from apps.api.models.practice import (
     ReadinessScoreResponse,
     ReadinessHistoryResponse,
     ReadinessHistoryItem,
+    AudioMetricsRequest,
+    VisionMetricsRequest,
 )
 from apps.api.practice.readiness import (
     get_readiness_result,
@@ -237,13 +239,13 @@ async def list_sessions(
             user_id=s.user_id,
             timestamp=s.timestamp,
             duration_minutes=s.duration_minutes,
-            audio_metrics=PracticeSessionCreate.AudioMetricsRequest(
+            audio_metrics=AudioMetricsRequest(
                 clarity_score=s.audio_metrics.clarity_score,
                 pitch_accuracy=s.audio_metrics.pitch_accuracy,
                 frequency_stability=s.audio_metrics.frequency_stability,
                 noise_level=s.audio_metrics.noise_level,
             ) if s.audio_metrics else None,
-            vision_metrics=PracticeSessionCreate.VisionMetricsRequest(
+            vision_metrics=VisionMetricsRequest(
                 posture_score=s.vision_metrics.posture_score,
                 strumming_form=s.vision_metrics.strumming_form,
                 hand_position=s.vision_metrics.hand_position,
@@ -254,3 +256,31 @@ async def list_sessions(
         )
         for s in sessions
     ]
+
+
+@router.get("/sessions/{session_id}", response_model=PracticeSessionResponse)
+async def get_session(session_id: str) -> PracticeSessionResponse:
+    """Get a specific practice session by ID."""
+    for s in _sessions:
+        if s.session_id == session_id:
+            return PracticeSessionResponse(
+                session_id=s.session_id,
+                user_id=s.user_id,
+                timestamp=s.timestamp,
+                duration_minutes=s.duration_minutes,
+                audio_metrics=AudioMetricsRequest(
+                    clarity_score=s.audio_metrics.clarity_score,
+                    pitch_accuracy=s.audio_metrics.pitch_accuracy,
+                    frequency_stability=s.audio_metrics.frequency_stability,
+                    noise_level=s.audio_metrics.noise_level,
+                ) if s.audio_metrics else None,
+                vision_metrics=VisionMetricsRequest(
+                    posture_score=s.vision_metrics.posture_score,
+                    strumming_form=s.vision_metrics.strumming_form,
+                    hand_position=s.vision_metrics.hand_position,
+                    timing_visual=s.vision_metrics.timing_visual,
+                ) if s.vision_metrics else None,
+                rhythm_consistency=s.rhythm_consistency,
+                tempo_maintained=s.tempo_maintained,
+            )
+    raise HTTPException(status_code=404, detail="Session not found")
