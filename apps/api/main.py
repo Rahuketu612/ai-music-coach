@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="AI Music Coach API",
     description="API for AI-powered guitar practice coaching",
-    version="0.3.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 

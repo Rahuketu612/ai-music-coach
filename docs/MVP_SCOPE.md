@@ -47,15 +47,26 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 - [x] Vision feedback display
 - [x] Privacy: images analyzed and discarded, not stored
 
-### 6. API Tests
+### 6. Guitar Readiness Score (v1)
+- [x] Combined readiness score from audio, rhythm, volume, posture, consistency
+- [x] Readiness level classification (not_ready, getting_ready, ready_for_first_guitar, ready_for_real_guitar_mode)
+- [x] Component score breakdown
+- [x] Blocker identification
+- [x] Recommendation generation
+- [x] Session-to-session improvement tracking
+- [x] Transparency note on educational nature
+
+### 7. API Tests
 - [x] Test health endpoint returns status ok
 - [x] Test version endpoint returns correct format
 - [x] Test practice session creation
 - [x] Test practice statistics
 - [x] Test vision analysis endpoints
 - [x] Test vision fallback behavior
+- [x] Test readiness score calculation
+- [x] Test readiness endpoints
 
-### 7. Documentation
+### 8. Documentation
 - [x] README.md with setup instructions
 - [x] PRD.md with product requirements
 - [x] ARCHITECTURE.md with system overview
@@ -63,6 +74,7 @@ Deliver a working foundation that demonstrates the core concept: a web app where
 - [x] ROADMAP.md with development timeline
 - [x] VISION_ENGINE.md with vision system documentation
 - [x] AUDIO_ENGINE.md with audio analysis documentation
+- [x] READINESS_SCORE.md with readiness score documentation
 
 ## Out of Scope (Post-MVP)
 

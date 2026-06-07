@@ -119,6 +119,7 @@ docker-compose down
 - [Development Roadmap](./docs/ROADMAP.md)
 - [Vision Engine](./docs/VISION_ENGINE.md)
 - [Audio Analysis Engine](./docs/AUDIO_ENGINE.md)
+- [Guitar Readiness Score](./docs/READINESS_SCORE.md)
 
 ## 🔒 Privacy
 

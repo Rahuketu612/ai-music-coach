@@ -21,9 +21,35 @@ interface PracticeStats {
   chords_practiced: string[];
 }
 
+interface ReadinessData {
+  readiness_score: number;
+  readiness_level: string;
+  level_description: string;
+  component_scores: {
+    audio: number;
+    rhythm: number;
+    volume: number;
+    posture: number;
+    consistency: number;
+  };
+  blockers: string[];
+  recommendations: string[];
+  confidence: number;
+  sessions_analyzed: number;
+  transparency_note: string;
+}
+
+const READINESS_LEVELS: Record<string, { color: string; emoji: string }> = {
+  not_ready: { color: "text-red-600", emoji: "🔴" },
+  getting_ready: { color: "text-amber-600", emoji: "🟡" },
+  ready_for_first_guitar: { color: "text-green-600", emoji: "🟢" },
+  ready_for_real_guitar_mode: { color: "text-emerald-600", emoji: "💚" },
+};
+
 export default function DashboardPage() {
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [stats, setStats] = useState<PracticeStats | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,10 +62,11 @@ export default function DashboardPage() {
     setError(null);
 
     try {
-      // Fetch sessions and stats in parallel
-      const [sessionsRes, statsRes] = await Promise.all([
+      // Fetch sessions, stats, and readiness in parallel
+      const [sessionsRes, statsRes, readinessRes] = await Promise.all([
         fetch("http://localhost:8000/api/practice/sessions?limit=10"),
         fetch("http://localhost:8000/api/practice/stats"),
+        fetch("http://localhost:8000/api/practice/readiness"),
       ]);
 
       if (!sessionsRes.ok || !statsRes.ok) {
@@ -48,9 +75,16 @@ export default function DashboardPage() {
 
       const sessionsData = await sessionsRes.json();
       const statsData = await statsRes.json();
+      
+      // Readiness might fail if no sessions exist
+      let readinessData: ReadinessData | null = null;
+      if (readinessRes.ok) {
+        readinessData = await readinessRes.json();
+      }
 
       setSessions(sessionsData.sessions || []);
       setStats(statsData);
+      setReadiness(readinessData);
     } catch (err) {
       setError("Unable to load dashboard data. Make sure the API is running.");
       console.error(err);
@@ -95,6 +129,82 @@ export default function DashboardPage() {
       {error && (
         <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {/* Readiness Score Card */}
+      {readiness && readiness.sessions_analyzed > 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-200 mb-8">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-2xl">
+                  {READINESS_LEVELS[readiness.readiness_level]?.emoji || "🎸"}
+                </span>
+                <h2 className="text-2xl font-bold text-slate-900">Guitar Readiness Score</h2>
+              </div>
+              <p className="text-lg text-indigo-700 font-medium">
+                {readiness.level_description}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className={`text-4xl font-bold ${READINESS_LEVELS[readiness.readiness_level]?.color || "text-slate-900"}`}>
+                {Math.round(readiness.readiness_score * 100)}%
+              </p>
+              <p className="text-sm text-slate-500">Overall Score</p>
+            </div>
+          </div>
+
+          {/* Component Breakdown */}
+          <div className="grid grid-cols-5 gap-3 mb-4">
+            {[
+              { key: "audio", label: "Audio", weight: "30%" },
+              { key: "rhythm", label: "Rhythm", weight: "20%" },
+              { key: "volume", label: "Volume", weight: "10%" },
+              { key: "posture", label: "Posture", weight: "20%" },
+              { key: "consistency", label: "Consistency", weight: "20%" },
+            ].map((component) => (
+              <div key={component.key} className="bg-white p-3 rounded-lg">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-slate-600">{component.label}</span>
+                  <span className="text-xs text-slate-400">{component.weight}</span>
+                </div>
+                <p className="text-lg font-bold text-slate-900">
+                  {Math.round((readiness.component_scores as any)[component.key] * 100)}%
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Blockers */}
+          {readiness.blockers.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm font-medium text-amber-800 mb-2">🎯 Areas to Improve:</p>
+              <ul className="text-sm text-amber-700 space-y-1">
+                {readiness.blockers.slice(0, 3).map((blocker, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span>•</span>
+                    <span>{blocker}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Next Step Recommendation */}
+          {readiness.recommendations.length > 0 && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+              <p className="text-sm font-medium text-indigo-800 mb-1">💡 Next Practice Focus:</p>
+              <p className="text-sm text-indigo-700">
+                {readiness.recommendations[0]}
+              </p>
+            </div>
+          )}
+
+          {/* Transparency Note */}
+          <p className="text-xs text-slate-500 mt-4 italic">
+            {readiness.transparency_note}
+          </p>
         </div>
       )}
 

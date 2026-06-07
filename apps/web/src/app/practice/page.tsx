@@ -14,6 +14,26 @@ interface PracticeResult {
   created_at: string;
 }
 
+interface SessionReadiness {
+  session_id: number;
+  chord_name: string;
+  readiness_score: number;
+  component_scores: {
+    audio: number;
+    rhythm: number;
+    volume: number;
+    posture: number;
+    consistency: number;
+  };
+  created_at: string;
+  improvement: {
+    has_previous: boolean;
+    improvements: string[];
+    needs_work: string[];
+  };
+  transparency_note: string;
+}
+
 interface VisionResult {
   hand_visible: boolean;
   confidence_score: number;
@@ -38,6 +58,7 @@ export default function PracticePage() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [visionResult, setVisionResult] = useState<VisionResult | null>(null);
+  const [sessionReadiness, setSessionReadiness] = useState<SessionReadiness | null>(null);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -174,6 +195,7 @@ export default function PracticePage() {
 
     setIsSubmitting(true);
     setError(null);
+    setSessionReadiness(null);
 
     try {
       const formData = new FormData();
@@ -194,6 +216,17 @@ export default function PracticePage() {
 
       const data = await response.json();
       setResult(data);
+
+      // Fetch session readiness
+      try {
+        const readinessRes = await fetch(`http://localhost:8000/api/practice/readiness/session/${data.id}`);
+        if (readinessRes.ok) {
+          const readinessData = await readinessRes.json();
+          setSessionReadiness(readinessData);
+        }
+      } catch (readinessErr) {
+        console.error("Failed to fetch session readiness:", readinessErr);
+      }
     } catch (err) {
       setError("Failed to submit practice session. Make sure the API is running.");
       console.error(err);
@@ -450,6 +483,67 @@ export default function PracticePage() {
         <div className="bg-green-50 p-8 rounded-xl border-2 border-green-200 mb-8">
           <h3 className="text-2xl font-bold text-slate-900 mb-6">🎉 Practice Complete!</h3>
           
+          {/* Session Readiness Score */}
+          {sessionReadiness && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🎸</span>
+                  <span className="font-bold text-indigo-900">Session Readiness Score</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-bold text-indigo-700">
+                    {Math.round(sessionReadiness.readiness_score * 100)}%
+                  </span>
+                </div>
+              </div>
+              
+              {/* Component Scores */}
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {[
+                  { key: "audio", label: "Audio" },
+                  { key: "rhythm", label: "Rhythm" },
+                  { key: "volume", label: "Volume" },
+                  { key: "posture", label: "Posture" },
+                  { key: "consistency", label: "Consistency" },
+                ].map((comp) => (
+                  <div key={comp.key} className="bg-white p-2 rounded text-center">
+                    <p className="text-xs text-slate-500">{comp.label}</p>
+                    <p className="font-bold text-slate-800">
+                      {Math.round((sessionReadiness.component_scores as any)[comp.key] * 100)}%
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Improvement / Needs Work */}
+              {sessionReadiness.improvement.has_previous && (
+                <div className="space-y-2">
+                  {sessionReadiness.improvement.improvements.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600">✓</span>
+                      <div className="text-sm text-green-800">
+                        {sessionReadiness.improvement.improvements.join(", ")}
+                      </div>
+                    </div>
+                  )}
+                  {sessionReadiness.improvement.needs_work.length > 0 && (
+                    <div className="flex items-start gap-2">
+                      <span className="text-amber-600">⚠️</span>
+                      <div className="text-sm text-amber-800">
+                        {sessionReadiness.improvement.needs_work.join(", ")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-slate-500 mt-3 italic">
+                {sessionReadiness.transparency_note}
+              </p>
+            </div>
+          )}
+
           <div className="grid md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg text-center">
               <p className="text-sm text-slate-500 mb-1">Chord</p>

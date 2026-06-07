@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -24,6 +25,14 @@ from db import (
 )
 from audio.analyzer import analyze_practice_audio
 from audio.feedback import generate_placeholder_feedback
+from practice.readiness import (
+    calculate_user_readiness_score,
+    get_session_readiness_scores,
+    calculate_improvement_from_last_session,
+    get_level_description,
+    ReadinessResult,
+    SessionReadinessResult,
+)
 
 router = APIRouter(prefix="/api/practice", tags=["Practice"])
 
@@ -382,4 +391,202 @@ async def get_practice_summary(db: Session = Depends(get_db)):
         },
         "session_count_by_chord": session_count_by_chord,
         "recent_sessions": recent_sessions,
+    }
+
+
+# =============================================================================
+# Readiness Score Endpoints
+# =============================================================================
+
+class ReadinessResponse(BaseModel):
+    """Response schema for readiness score."""
+    readiness_score: float = Field(..., ge=0, le=1, description="Overall readiness score (0-1)")
+    readiness_level: str = Field(..., description="Readiness level")
+    level_description: str = Field(..., description="Human-readable level description")
+    component_scores: dict = Field(..., description="Individual component scores")
+    blockers: list[str] = Field(default_factory=list, description="Issues preventing higher readiness")
+    recommendations: list[str] = Field(default_factory=list, description="Improvement recommendations")
+    confidence: float = Field(..., ge=0, le=1, description="Assessment confidence")
+    sessions_analyzed: int = Field(..., description="Number of sessions used for assessment")
+    transparency_note: str = Field(..., description="Educational disclaimer")
+
+
+class SessionReadinessResponse(BaseModel):
+    """Response schema for session readiness history."""
+    session_id: int
+    chord_name: str
+    readiness_score: float
+    component_scores: dict
+    created_at: str
+
+
+class ReadinessHistoryResponse(BaseModel):
+    """Response schema for readiness history."""
+    sessions: list[SessionReadinessResponse]
+    total: int
+
+
+@router.get("/readiness", response_model=ReadinessResponse)
+async def get_readiness_score(db: Session = Depends(get_db)):
+    """
+    Get the user's current guitar readiness score.
+    
+    This endpoint calculates a comprehensive readiness score based on:
+    - Audio quality (30%)
+    - Rhythm consistency (20%)
+    - Volume stability (10%)
+    - Posture score (20%)
+    - Practice consistency (20%)
+    
+    The score is an educational estimate, NOT a certification of musical mastery.
+    """
+    # Get all sessions
+    sessions = db.query(PracticeSessionDB).all()
+    
+    # Convert to dictionaries for readiness calculation
+    sessions_data = [
+        {
+            "id": s.id,
+            "chord_name": s.chord_name,
+            "duration_seconds": s.duration_seconds,
+            "audio_score": s.audio_score,
+            "rhythm_score": s.rhythm_score,
+            "volume_stability_score": s.volume_stability_score,
+            "posture_score": s.posture_score,
+            "hand_visible": s.hand_visible,
+            "vision_confidence": s.vision_confidence,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sessions
+    ]
+    
+    # Calculate readiness
+    result = calculate_user_readiness_score(sessions_data)
+    
+    return ReadinessResponse(
+        readiness_score=result.readiness_score,
+        readiness_level=result.readiness_level,
+        level_description=get_level_description(result.readiness_level),
+        component_scores=result.component_scores.to_dict(),
+        blockers=result.blockers,
+        recommendations=result.recommendations,
+        confidence=result.confidence,
+        sessions_analyzed=result.sessions_analyzed,
+        transparency_note=result.transparency_note,
+    )
+
+
+@router.get("/readiness/history", response_model=ReadinessHistoryResponse)
+async def get_readiness_history(
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """
+    Get readiness score history for all practice sessions.
+    
+    - **limit**: Maximum number of sessions to return (default: 20)
+    """
+    sessions = (
+        db.query(PracticeSessionDB)
+        .order_by(PracticeSessionDB.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    
+    # Convert to session readiness results
+    sessions_data = [
+        {
+            "id": s.id,
+            "chord_name": s.chord_name,
+            "duration_seconds": s.duration_seconds,
+            "audio_score": s.audio_score,
+            "rhythm_score": s.rhythm_score,
+            "volume_stability_score": s.volume_stability_score,
+            "posture_score": s.posture_score,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in sessions
+    ]
+    
+    session_readiness = get_session_readiness_scores(sessions_data)
+    
+    return ReadinessHistoryResponse(
+        sessions=[
+            SessionReadinessResponse(
+                session_id=r.session_id,
+                chord_name=r.chord_name,
+                readiness_score=r.readiness_score,
+                component_scores=r.component_scores.to_dict(),
+                created_at=r.created_at.isoformat(),
+            )
+            for r in session_readiness
+        ],
+        total=len(session_readiness),
+    )
+
+
+@router.get("/readiness/session/{session_id}")
+async def get_session_readiness(
+    session_id: int,
+    db: Session = Depends(get_db),
+):
+    """
+    Get readiness score for a specific session.
+    """
+    session = db.query(PracticeSessionDB).filter(
+        PracticeSessionDB.id == session_id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Practice session not found")
+    
+    # Get all sessions to calculate consistency
+    all_sessions = db.query(PracticeSessionDB).all()
+    
+    sessions_data = [
+        {
+            "id": s.id,
+            "chord_name": s.chord_name,
+            "duration_seconds": s.duration_seconds,
+            "audio_score": s.audio_score,
+            "rhythm_score": s.rhythm_score,
+            "volume_stability_score": s.volume_stability_score,
+            "posture_score": s.posture_score,
+            "created_at": s.created_at.isoformat(),
+        }
+        for s in all_sessions
+    ]
+    
+    # Get previous session for comparison
+    previous_session = None
+    for i, s in enumerate(sessions_data):
+        if s["id"] == session_id and i > 0:
+            previous_session = sessions_data[i - 1]
+            break
+    
+    # Calculate improvement
+    current_session_data = {
+        "id": session.id,
+        "chord_name": session.chord_name,
+        "duration_seconds": session.duration_seconds,
+        "audio_score": session.audio_score,
+        "rhythm_score": session.rhythm_score,
+        "volume_stability_score": session.volume_stability_score,
+        "posture_score": session.posture_score,
+        "created_at": session.created_at.isoformat(),
+    }
+    
+    improvement = calculate_improvement_from_last_session(current_session_data, previous_session)
+    
+    # Get session readiness score
+    session_readiness = get_session_readiness_scores([current_session_data])[0]
+    
+    return {
+        "session_id": session_id,
+        "chord_name": session.chord_name,
+        "readiness_score": round(session_readiness.readiness_score, 3),
+        "component_scores": session_readiness.component_scores.to_dict(),
+        "created_at": session.created_at.isoformat(),
+        "improvement": improvement,
+        "transparency_note": "Readiness Score is an educational estimate based on practice quality, rhythm, posture, and consistency. It does not certify musical mastery.",
     }
